@@ -9,6 +9,10 @@
 #define PADDLE_SPEED 8
 #define BALL_RADIUS 6
 
+#define BALL_SPEED_LOSS_FACTOR 0.95    // Ball loses speed on brick collision (5% loss)
+#define BALL_SPEED_GAIN_FACTOR 0.08    // Ball gains speed based on paddle velocity
+#define MAX_BALL_SPEED 12.0
+
 #define BRICK_NUM 100
 #define BRICK_MAX_ROWS 6
 #define BRICK_ROWS 5
@@ -55,6 +59,7 @@ typedef struct {
 
     Rectangle paddle;
     float paddle_speed;
+    float paddle_velocity;
     int paddle_width;
 
     Vector2 ball_position;

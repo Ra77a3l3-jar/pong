@@ -1,5 +1,6 @@
 #include <raylib.h>
 #include <stdbool.h>
+#include <math.h>
 #include "breakout.h"
 
 void BreakoutInit(BreakoutGameState *state) {
@@ -17,6 +18,7 @@ void BreakoutInit(BreakoutGameState *state) {
     breakout_state->paddle = (Rectangle) {GetScreenWidth()/2 - breakout_state->paddle_width/2, GetScreenHeight() - 50, breakout_state->paddle_width, PADDLE_HEIGHT};
     breakout_state->paddle_width = PADDLE_WIDTH;
     breakout_state->paddle_speed = PADDLE_SPEED;
+    breakout_state->paddle_velocity = 0.0;
 
     breakout_state->ball_rad = BALL_RADIUS;
     breakout_state->ball_speed_multiplier = 1.0;
@@ -57,6 +59,11 @@ void BreakoutSetupLevel(BreakoutGameState *state) {
     for(int row = 0; row < state->brick_rows; row++) {
         for(int col = 0; col < state->brick_cols; col++) {
             int indx = row * state->brick_cols + col;
+            // Bounds check to prevent array overflow
+            if(indx >= BRICK_NUM) {
+                state->brick_count = BRICK_NUM;
+                return;
+            }
             state->bricks[indx] = (Rectangle) {
                 startX + col * (state->brick_width + BRICK_PADD),
                 startY + row * (state->brick_height + BRICK_PADD),
@@ -78,8 +85,16 @@ bool BreakoutUpdate(BreakoutGameState *state) {
             breakout_state->current_screen = BREAKOUT_PAUSED;
         } else if(breakout_state->current_screen == BREAKOUT_PAUSED) {
             breakout_state->current_screen = BREAKOUT_GAMEPLAY;
+            // Update paddle rectangle with current width
+            breakout_state->paddle.width = breakout_state->paddle_width;
+            breakout_state->paddle.x = GetScreenWidth()/2 - breakout_state->paddle_width/2;
         } else if(breakout_state->current_screen == BREAKOUT_SETTINGS) {
             breakout_state->current_screen = breakout_state->prev_screen;
+            // Update paddle rectangle if returning to gameplay
+            if(breakout_state->prev_screen == BREAKOUT_GAMEPLAY || breakout_state->prev_screen == BREAKOUT_PAUSED) {
+                breakout_state->paddle.width = breakout_state->paddle_width;
+                breakout_state->paddle.x = GetScreenWidth()/2 - breakout_state->paddle_width/2;
+            }
         } else if(breakout_state->current_screen == BREAKOUT_MENU) {
             return false;
         }
@@ -115,12 +130,20 @@ bool BreakoutUpdate(BreakoutGameState *state) {
                 breakout_state->brick_rows += direction;
                 if(breakout_state->brick_rows < 2) breakout_state->brick_rows = 2;
                 if(breakout_state->brick_rows > BRICK_MAX_ROWS) breakout_state->brick_rows = BRICK_MAX_ROWS;
+                // Check if bricks don't exced array size
+                while(breakout_state->brick_rows * breakout_state->brick_cols > BRICK_NUM) {
+                    breakout_state->brick_rows--;
+                }
                 breakout_state->brick_width = (GetScreenWidth() - (breakout_state->brick_cols + 1) * BRICK_PADD) / breakout_state->brick_cols;
                 BreakoutSetupLevel(breakout_state);
             } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_COLS) {
                 breakout_state->brick_cols += direction;
                 if(breakout_state->brick_cols < 5) breakout_state->brick_cols = 5;
                 if(breakout_state->brick_cols > BRICK_MAX_COLS) breakout_state->brick_cols = BRICK_MAX_COLS;
+                // Check bricks don't exceed array size
+                while(breakout_state->brick_rows * breakout_state->brick_cols > BRICK_NUM) {
+                    breakout_state->brick_cols--;
+                }
                 breakout_state->brick_width = (GetScreenWidth() - (breakout_state->brick_cols + 1) * BRICK_PADD) / breakout_state->brick_cols;
                 BreakoutSetupLevel(breakout_state);
             } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LIVES) {
@@ -172,11 +195,14 @@ bool BreakoutUpdate(BreakoutGameState *state) {
 
     if(breakout_state->current_screen == BREAKOUT_GAMEPLAY) {
         // Paddle movement
+        breakout_state->paddle_velocity = 0.0;
         if(IsKeyDown(breakout_state->key_left) && breakout_state->paddle.x > 0) {
             breakout_state->paddle.x -= breakout_state->paddle_speed;
+            breakout_state->paddle_velocity = -breakout_state->paddle_speed;
         }
         if(IsKeyDown(breakout_state->key_right) && breakout_state->paddle.x + breakout_state->paddle_width < GetScreenWidth()) {
             breakout_state->paddle.x += breakout_state->paddle_speed;
+            breakout_state->paddle_velocity = breakout_state->paddle_speed;
         }
 
         // Ball movement
@@ -217,6 +243,25 @@ bool BreakoutUpdate(BreakoutGameState *state) {
                 // Direction based on hit position
                 float relative_intersection = (breakout_state->ball_position.x - breakout_state->paddle.x) / breakout_state->paddle_width;
                 breakout_state->ball_speed.x = (relative_intersection - 0.5) * 10 * breakout_state->ball_speed_multiplier;
+
+                // Apply speed gain/loss based on paddle velocity
+                float speed_magnitude = sqrt(breakout_state->ball_speed.x * breakout_state->ball_speed.x +
+                                            breakout_state->ball_speed.y * breakout_state->ball_speed.y);
+                speed_magnitude += breakout_state->paddle_velocity * BALL_SPEED_GAIN_FACTOR;
+
+                // Cap maximum speed
+                if(speed_magnitude > MAX_BALL_SPEED) {
+                    speed_magnitude = MAX_BALL_SPEED;
+                }
+
+                // Normalize and apply new speed
+                if(speed_magnitude > 0) {
+                    float scale = speed_magnitude / sqrt(breakout_state->ball_speed.x * breakout_state->ball_speed.x +
+                                                         breakout_state->ball_speed.y * breakout_state->ball_speed.y);
+                    breakout_state->ball_speed.x *= scale;
+                    breakout_state->ball_speed.y *= scale;
+                }
+
                 PlaySound(breakout_state->paddle_sound);
             }
 
@@ -227,6 +272,22 @@ bool BreakoutUpdate(BreakoutGameState *state) {
                     breakout_state->bricks_active[i] = false;
                     breakout_state->score += 1;
                     breakout_state->ball_speed.y *= -1;
+
+                    // Apply speed loss on brick collision
+                    float speed_magnitude = sqrt(breakout_state->ball_speed.x * breakout_state->ball_speed.x +
+                                                breakout_state->ball_speed.y * breakout_state->ball_speed.y);
+                    speed_magnitude *= BALL_SPEED_LOSS_FACTOR;
+
+                    // Normalize and apply new speed
+                    if(speed_magnitude > 0) {
+                        float current_speed = sqrt(breakout_state->ball_speed.x * breakout_state->ball_speed.x +
+                                                  breakout_state->ball_speed.y * breakout_state->ball_speed.y);
+                        if(current_speed > 0) {
+                            float scale = speed_magnitude / current_speed;
+                            breakout_state->ball_speed.x *= scale;
+                            breakout_state->ball_speed.y *= scale;
+                        }
+                    }
 
                     PlaySound(breakout_state->brick_sound);
 
