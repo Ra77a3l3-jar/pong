@@ -4,14 +4,16 @@
 #include <raylib.h>
 #include <stdbool.h>
 
-#define PADDLE_WIDTH 100
+#define PADDLE_WIDTH 130
 #define PADDLE_HEIGHT 15
 #define PADDLE_SPEED 8
-#define BALL_RADIUS 6
+#define BALL_RADIUS 8
 
 #define BALL_SPEED_LOSS_FACTOR 0.95    // Ball loses speed on brick collision (5% loss)
 #define BALL_SPEED_GAIN_FACTOR 0.08    // Ball gains speed based on paddle velocity
 #define MAX_BALL_SPEED 12.0
+
+#define BALL_TRAIL_LENGHT 6 // Lenght not invasive
 
 #define BRICK_NUM 100
 #define BRICK_MAX_ROWS 6
@@ -41,6 +43,7 @@ typedef enum {
     BREAKOUT_SETTINGS_LIVES,
     BREAKOUT_SETTINGS_LEVEL,
     BREAKOUT_SETTINGS_BALL_SIZE,
+    BREAKOUT_SETTINGS_TRAIL_EFFECT,
     BREAKOUT_SETTINGS_CONTROLS,
     BREAKOUT_SETTINGS_SECTION_COUNT
 } BreakoutSettingsSection;
@@ -68,6 +71,9 @@ typedef struct {
     float ball_rad;
     bool ball_active;
     float ball_speed_multiplier;
+    Vector2 ball_trail[BALL_TRAIL_LENGHT];
+    int trail_index;
+    bool trail_enabled;
 
     Rectangle bricks[BRICK_NUM];
     bool bricks_active[BRICK_NUM];

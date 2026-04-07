@@ -27,6 +27,11 @@ void BreakoutInit(BreakoutGameState *state) {
     breakout_state->ball_position = (Vector2){0, 0};
     breakout_state->ball_speed = (Vector2){0, 0};
     breakout_state->ball_active = false;
+    breakout_state->trail_index = 0;
+    breakout_state->trail_enabled = false;
+    for(int i = 0; i < BALL_TRAIL_LENGHT; i++) {
+        breakout_state->ball_trail[i] = (Vector2){0, 0};
+    }
 
     breakout_state->brick_rows = BRICK_ROWS;
     breakout_state->brick_cols = BRICK_COLS;
@@ -190,6 +195,8 @@ bool BreakoutUpdate(BreakoutGameState *state) {
                     breakout_state->ball_rad += direction;
                     if(breakout_state->ball_rad < 3) breakout_state->ball_rad = 3;
                     if(breakout_state->ball_rad > 15) breakout_state->ball_rad = 15;
+                } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_TRAIL_EFFECT) {
+                    breakout_state->trail_enabled = !breakout_state->trail_enabled;
                 } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_CONTROLS) {
                     if(IsKeyPressed(KEY_LEFT)) {
                         breakout_state->selected_key_index = (breakout_state->selected_key_index - 1 + 2) % 2;
@@ -356,6 +363,13 @@ bool BreakoutUpdate(BreakoutGameState *state) {
             }
         }
 
+        if(breakout_state->trail_enabled) {
+            for(int i = BALL_TRAIL_LENGHT - 1; i > 0; i--) {
+                breakout_state->ball_trail[i] = breakout_state->ball_trail[i - 1];
+            }
+            breakout_state->ball_trail[0] = breakout_state->ball_position;
+        }
+
         // Launch ball
         if(!breakout_state->ball_active && IsKeyPressed(KEY_SPACE)) {
             breakout_state->ball_active = true;
@@ -408,7 +422,10 @@ void BreakoutDraw(BreakoutGameState *state) {
             Color ball_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_BALL_SIZE) ? RED : WHITE;
             DrawText(TextFormat("Ball Size:          %.1f", breakout_state->ball_rad), left_x, start_y + item_spacing * 5, 24, ball_color);
 
-            DrawText("CONTROLS", 100, start_y + item_spacing * 6 + 20, 28, GRAY);
+            Color trail_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_TRAIL_EFFECT) ? RED : WHITE;
+            DrawText(TextFormat("Trail Effect:       %s", breakout_state->trail_enabled ? "ON" : "OFF"), left_x, start_y + item_spacing * 6, 24, trail_color);
+
+            DrawText("CONTROLS", 100, start_y + item_spacing * 7 + 20, 28, GRAY);
 
             const char *controls[2] = {"Key Left", "Key Right"};
             int keys[2] = {
@@ -416,7 +433,7 @@ void BreakoutDraw(BreakoutGameState *state) {
                 breakout_state->key_right
             };
 
-            int controls_start_y = start_y + item_spacing * 7 + 20;
+            int controls_start_y = start_y + item_spacing * 8 + 20;
             for(int i = 0; i < 2; i++) {
                 const char *key_name = GetKeyName(keys[i]);
                 char buff[64];
@@ -508,6 +525,23 @@ void BreakoutDraw(BreakoutGameState *state) {
 
             // Draw ball
             DrawCircleV(breakout_state->ball_position, breakout_state->ball_rad, WHITE);
+
+            if(breakout_state->trail_enabled) {
+                for(int i = 0; i < BALL_TRAIL_LENGHT; i++) {
+                    if(i == 0) continue; // Skip current ball position
+
+                    Vector2 position = breakout_state->ball_trail[i];
+
+                    if(position.x <= 0 || position.y <= 0) continue; // Skip invalid position
+
+                    float alpha = 1 - (i - 10);
+
+                    float size = breakout_state->ball_rad * 0.7 * (1 - i/10);
+
+                    Color trail = ColorAlpha(WHITE, alpha);
+                    DrawCircleV(position, size, trail);
+                }
+            }
 
             // Instructions
             if(!breakout_state->ball_active) {

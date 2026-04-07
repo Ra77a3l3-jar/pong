@@ -6,6 +6,8 @@
 
 #define VICTORY_SCREEN_DURATION 600 // 5 seconds at 120fps
 
+#define BALL_TRAIL_LENGHT 10
+
 typedef enum {
     PAUSE_RESUME,
     PAUSE_RESTART,
@@ -17,6 +19,7 @@ typedef enum {
 typedef enum {
     SETTINGS_VICTORY_POINTS,
     SETTINGS_DIFFICULTY,
+    SETTINGS_TRAIL_EFFECT,
     SETTINGS_CONTROLS,
     SETTINGS_SECTION_COUNT
 } SettingsSection;
@@ -51,6 +54,10 @@ typedef struct {
 
     Vector2 ball_position;
     Vector2 ball_speed;
+    Vector2 ball_trail[BALL_TRAIL_LENGHT];
+    int ball_rad;
+    int trail_index;
+    bool trail_enabled;
 
     int player_score;
     int oponent_score;

@@ -24,6 +24,12 @@ void PongInit(void *state) {
 
     pong_state->ball_position = (Vector2){GetScreenWidth()/2, GetScreenHeight()/2};
     pong_state->ball_speed = (Vector2){5, 3};
+    pong_state->ball_rad = 10;
+    pong_state->trail_index = 0;
+    pong_state->trail_enabled = false;
+    for(int i = 0; i < BALL_TRAIL_LENGHT; i++) {
+        pong_state->ball_trail[i] = (Vector2){0, 0};
+    }
 
     pong_state->player_score = 0;
     pong_state->oponent_score = 0;
@@ -205,11 +211,11 @@ bool PongUpdate(void *state) {
         }
 
         // Ball collision with Paddle
-        if (CheckCollisionCircleRec(pong_state->ball_position, 10, pong_state->player_paddle) ||
-            CheckCollisionCircleRec(pong_state->ball_position, 10, pong_state->oponent_paddle)) {
+        if (CheckCollisionCircleRec(pong_state->ball_position, pong_state->ball_rad, pong_state->player_paddle) ||
+            CheckCollisionCircleRec(pong_state->ball_position, pong_state->ball_rad, pong_state->oponent_paddle)) {
 
             // Calculate relative intersection point (0.0 1.0)
-            Rectangle *paddle = CheckCollisionCircleRec(pong_state->ball_position, 10, pong_state->player_paddle) ? &pong_state->player_paddle : &pong_state->oponent_paddle;
+            Rectangle *paddle = CheckCollisionCircleRec(pong_state->ball_position, pong_state->ball_rad, pong_state->player_paddle) ? &pong_state->player_paddle : &pong_state->oponent_paddle;
             float relative_y_intersection = (pong_state->ball_position.y - paddle->y) / paddle->height;
 
             float paddle_speed = (paddle == &pong_state->player_paddle) ? pong_state->player_paddle_speed : pong_state->oponent_paddle_speed;
@@ -229,6 +235,14 @@ bool PongUpdate(void *state) {
             }
 
             PlaySound(pong_state->paddle_hit_sound);
+        }
+
+        if(pong_state->trail_enabled) {
+            for(int i = BALL_TRAIL_LENGHT - 1; i > 0; i--) {
+                pong_state->ball_trail[i] = pong_state->ball_trail[i - 1];
+            }
+            // Current ball position at begining
+            pong_state->ball_trail[0] = pong_state->ball_position;
         }
 
         // Scoring
@@ -280,7 +294,24 @@ void PongDraw(void *state) {
                 DrawRectangleRec(pong_state->oponent_paddle, WHITE);
 
                 // Draw ball
-                DrawCircleV(pong_state->ball_position, 10, WHITE);
+                DrawCircleV(pong_state->ball_position, pong_state->ball_rad, WHITE);
+
+                if(pong_state->trail_enabled) {
+                    for(int i = 0; i < BALL_TRAIL_LENGHT; i++) {
+                        if(i == 0) continue; // Skip current ball position
+
+                        Vector2 position = pong_state->ball_trail[i];
+
+                        if(position.x <= 0 || position.y <= 0) continue; // Skip invalid position
+
+                        float alpha = 1 - (i - 10);
+
+                        float size = pong_state->ball_rad * 0.7 * (1 - i/10);
+
+                        Color trail = ColorAlpha(WHITE, alpha);
+                        DrawCircleV(position, size, trail);
+                    }
+                }
 
                 // Draw points
                 DrawText(TextFormat("%d", pong_state->player_score), GetScreenWidth()/4, 50, 30, WHITE);
@@ -291,7 +322,7 @@ void PongDraw(void *state) {
         case PONG_PAUSED: {
                 DrawRectangleRec(pong_state->player_paddle, WHITE);
                 DrawRectangleRec(pong_state->oponent_paddle, WHITE);
-                DrawCircleV(pong_state->ball_position, 10, WHITE);
+                DrawCircleV(pong_state->ball_position, pong_state->ball_rad, WHITE);
                 DrawText(TextFormat("%d", pong_state->player_score), GetScreenWidth()/4, 50, 30, WHITE);
                 DrawText(TextFormat("%d", pong_state->oponent_score), 3*GetScreenWidth()/4, 50, 30, WHITE);
 
@@ -345,6 +376,10 @@ void PongDraw(void *state) {
                                 }
                             }
                         }
+                    } else if(pong_state->selected_settings_section == SETTINGS_TRAIL_EFFECT) {
+                        if(IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_RIGHT)) {
+                            pong_state->trail_enabled = !pong_state->trail_enabled;
+                        }
                     } else if(pong_state->selected_settings_section == SETTINGS_DIFFICULTY) {
                         if(IsKeyPressed(KEY_LEFT) && pong_state->difficulty_level > 0) {
                             pong_state->difficulty_level--;
@@ -377,7 +412,10 @@ void PongDraw(void *state) {
                 Color diff_color = (pong_state->selected_settings_section == SETTINGS_DIFFICULTY) ? RED : WHITE;
                 DrawText(TextFormat("Difficulty:        %d", pong_state->difficulty_level + 1), left_x, start_y + item_spacing, 24, diff_color);
 
-                DrawText("CONTROLS", 100, start_y + item_spacing * 2 + 20, 28, GRAY);
+                Color trail_color = (pong_state->selected_settings_section == SETTINGS_TRAIL_EFFECT) ? RED : WHITE;
+                DrawText(TextFormat("Trail Effect:      %s", pong_state->trail_enabled ? "ON" : "OFF"), left_x, start_y + item_spacing * 2, 24, trail_color);
+
+                DrawText("CONTROLS", 100, start_y + item_spacing * 3 + 20, 28, GRAY);
 
                 const char *controls[4] = {"Player Up", "Player Down", "Opponent Up", "Opponent Down"};
                 int keys[4] = {
@@ -387,7 +425,7 @@ void PongDraw(void *state) {
                     pong_state->key_opponent_down
                 };
 
-                int controls_start_y = start_y + item_spacing * 3 + 20;
+                int controls_start_y = start_y + item_spacing * 4 + 20;
                 for(int i = 0; i < 4; i++) {
                     const char *key_name = GetKeyName(keys[i]);
                     char buff[64];
