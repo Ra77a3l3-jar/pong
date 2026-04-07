@@ -263,14 +263,19 @@ bool BreakoutUpdate(BreakoutGameState *state) {
             breakout_state->ball_position.y += breakout_state->ball_speed.y;
 
             // Ball collision with walls
-            if(breakout_state->ball_position.x - breakout_state->ball_rad <= 0 ||
-                breakout_state->ball_position.x + breakout_state->ball_rad >= GetScreenWidth()) {
-                breakout_state->ball_speed.x *= -1;
+            if(breakout_state->ball_position.x - breakout_state->ball_rad <= 0 && breakout_state->ball_speed.x < 0) {
+                breakout_state->ball_position.x = breakout_state->ball_rad;
+                breakout_state->ball_speed.x = fabsf(breakout_state->ball_speed.x);
                 PlaySound(breakout_state->wall_hit_sound);
             }
-
-            if(breakout_state->ball_position.y - breakout_state->ball_rad <= 0) {
-                breakout_state->ball_speed.y *= -1;
+            if(breakout_state->ball_position.x + breakout_state->ball_rad >= GetScreenWidth() && breakout_state->ball_speed.x > 0) {
+                breakout_state->ball_position.x = GetScreenWidth() - breakout_state->ball_rad;
+                breakout_state->ball_speed.x = -fabsf(breakout_state->ball_speed.x);
+                PlaySound(breakout_state->wall_hit_sound);
+            }
+            if(breakout_state->ball_position.y - breakout_state->ball_rad <= 0 && breakout_state->ball_speed.y < 0) {
+                breakout_state->ball_position.y = breakout_state->ball_rad;
+                breakout_state->ball_speed.y = fabsf(breakout_state->ball_speed.y);
             }
 
             // Ball collision with bottom
@@ -288,9 +293,12 @@ bool BreakoutUpdate(BreakoutGameState *state) {
                 PlaySound(breakout_state->lose_life_sound);
             }
 
-            // Ball collision with paddle
-            if(CheckCollisionCircleRec(breakout_state->ball_position, breakout_state->ball_rad, breakout_state->paddle)) {
-                breakout_state->ball_speed.y *= -1;
+            // Ball collision with paddle (ball must be moving downward)
+            if(CheckCollisionCircleRec(breakout_state->ball_position, breakout_state->ball_rad, breakout_state->paddle) &&
+               breakout_state->ball_speed.y > 0) {
+                // Push ball above paddle so it can't re-enter
+                breakout_state->ball_position.y = breakout_state->paddle.y - breakout_state->ball_rad;
+                breakout_state->ball_speed.y = -fabsf(breakout_state->ball_speed.y);
 
                 // Direction based on hit position
                 float relative_intersection = (breakout_state->ball_position.x - breakout_state->paddle.x) / breakout_state->paddle_width;

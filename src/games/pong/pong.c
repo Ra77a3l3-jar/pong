@@ -199,38 +199,55 @@ bool PongUpdate(void *state) {
         pong_state->ball_position.x += pong_state->ball_speed.x;
         pong_state->ball_position.y += pong_state->ball_speed.y;
 
-        // Ball collision with Top and Botom
-        if (pong_state->ball_position.y <= 0 || pong_state->ball_position.y >= GetScreenHeight()) {
-            pong_state->ball_speed.y *= -1;
-
-            // Randomize a bit the bouncing from colliding with the wall
+        // Ball collision with Top and Bottom
+        if (pong_state->ball_position.y - pong_state->ball_rad <= 0 && pong_state->ball_speed.y < 0) {
+            pong_state->ball_position.y = pong_state->ball_rad;
+            pong_state->ball_speed.y = fabsf(pong_state->ball_speed.y);
             float randomFactor = ((float)GetRandomValue(-30, 30) / 100.0f);
             pong_state->ball_position.x += randomFactor;
-
+            PlaySound(pong_state->wall_hit_sound);
+        } else if (pong_state->ball_position.y + pong_state->ball_rad >= GetScreenHeight() && pong_state->ball_speed.y > 0) {
+            pong_state->ball_position.y = GetScreenHeight() - pong_state->ball_rad;
+            pong_state->ball_speed.y = -fabsf(pong_state->ball_speed.y);
+            float randomFactor = ((float)GetRandomValue(-30, 30) / 100.0f);
+            pong_state->ball_position.x += randomFactor;
             PlaySound(pong_state->wall_hit_sound);
         }
 
-        // Ball collision with Paddle
-        if (CheckCollisionCircleRec(pong_state->ball_position, pong_state->ball_rad, pong_state->player_paddle) ||
-            CheckCollisionCircleRec(pong_state->ball_position, pong_state->ball_rad, pong_state->oponent_paddle)) {
+        // Ball collision with player paddle (ball must be moving left)
+        if (CheckCollisionCircleRec(pong_state->ball_position, pong_state->ball_rad, pong_state->player_paddle) &&
+            pong_state->ball_speed.x < 0) {
 
-            // Calculate relative intersection point (0.0 1.0)
-            Rectangle *paddle = CheckCollisionCircleRec(pong_state->ball_position, pong_state->ball_rad, pong_state->player_paddle) ? &pong_state->player_paddle : &pong_state->oponent_paddle;
-            float relative_y_intersection = (pong_state->ball_position.y - paddle->y) / paddle->height;
+            // Push ball to the right of the paddle so it can't re-enter
+            pong_state->ball_position.x = pong_state->player_paddle.x + pong_state->player_paddle.width + pong_state->ball_rad;
 
-            float paddle_speed = (paddle == &pong_state->player_paddle) ? pong_state->player_paddle_speed : pong_state->oponent_paddle_speed;
+            float relative_y_intersection = (pong_state->ball_position.y - pong_state->player_paddle.y) / pong_state->player_paddle.height;
+            pong_state->ball_speed.y = (relative_y_intersection - 0.5f) * 10 + pong_state->player_paddle_speed * 0.2f;
+            pong_state->ball_speed.x = fabsf(pong_state->ball_speed.x); // ensure moving right
 
-            /* Adjust ball speed based on where it hit
-               The middle of the paddle does not change the y of balls trajectory
-               Top and bottom of paddle increase y speed */
+            if(fabsf(pong_state->player_paddle_speed) > 0.1f) {
+                pong_state->ball_speed.x *= 1.1f;
+            } else {
+                pong_state->ball_speed.x *= 0.90f;
+            }
 
-            pong_state->ball_speed.y = (relative_y_intersection - 0.5) * 10 + paddle_speed * 0.2; // Scale factor of the bounce angle
+            PlaySound(pong_state->paddle_hit_sound);
+        }
 
-            pong_state->ball_speed.x *= -1.0; // Just reverse movement
+        // Ball collision with opponent paddle (ball must be moving right)
+        if (CheckCollisionCircleRec(pong_state->ball_position, pong_state->ball_rad, pong_state->oponent_paddle) &&
+            pong_state->ball_speed.x > 0) {
 
-            if(fabsf(paddle_speed) > 0.1) { // If paddle is moving
+            // Push ball to the left of the paddle so it can't re-enter
+            pong_state->ball_position.x = pong_state->oponent_paddle.x - pong_state->ball_rad;
+
+            float relative_y_intersection = (pong_state->ball_position.y - pong_state->oponent_paddle.y) / pong_state->oponent_paddle.height;
+            pong_state->ball_speed.y = (relative_y_intersection - 0.5) * 10 + pong_state->oponent_paddle_speed * 0.2;
+            pong_state->ball_speed.x = -fabsf(pong_state->ball_speed.x); // ensure moving left (reverse movement)
+
+            if(fabsf(pong_state->oponent_paddle_speed) > 0.1) {
                 pong_state->ball_speed.x *= 1.1; // Increse by 10% speed
-            } else { // If paddle is static
+            } else {
                 pong_state->ball_speed.x *= 0.90; // Decrease by 10% speed
             }
 
