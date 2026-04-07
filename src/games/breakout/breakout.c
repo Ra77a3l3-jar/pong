@@ -1,7 +1,9 @@
 #include <raylib.h>
 #include <stdbool.h>
 #include <math.h>
+#include <stdio.h>
 #include "breakout.h"
+#include "utils.h"
 
 void BreakoutInit(BreakoutGameState *state) {
     BreakoutGameState *breakout_state = (BreakoutGameState*)state;
@@ -34,6 +36,9 @@ void BreakoutInit(BreakoutGameState *state) {
 
     breakout_state->key_left = KEY_LEFT;
     breakout_state->key_right = KEY_RIGHT;
+    breakout_state->waiting_for_key = false;
+    breakout_state->rebiding_key = 0;
+    breakout_state->selected_key_index = 0;
 
     breakout_state->paddle_sound = LoadSound("assets/audio/breakout/breakout_paddle.wav");
     breakout_state->brick_sound = LoadSound("assets/audio/breakout/breakout_brick.wav");
@@ -100,6 +105,23 @@ bool BreakoutUpdate(BreakoutGameState *state) {
         }
     }
 
+    if(breakout_state->waiting_for_key) {
+        for(int i = FIRST_KEY; i < LAST_KEY; i++) {
+            if(IsKeyPressed(i)) {
+                switch(breakout_state->rebiding_key) {
+                    case 1: breakout_state->key_left = i; break;
+                    case 2: breakout_state->key_right = i; break;
+                }
+                breakout_state->waiting_for_key = false;
+                break;
+            }
+        }
+        // To cancel rebinding
+        if(IsKeyPressed(KEY_ESCAPE)) {
+            breakout_state->waiting_for_key = false;
+        }
+    }
+
     if(breakout_state->current_screen == BREAKOUT_MENU) {
         if(IsKeyPressed(KEY_ENTER)) {
             breakout_state->current_screen = BREAKOUT_GAMEPLAY;
@@ -113,52 +135,75 @@ bool BreakoutUpdate(BreakoutGameState *state) {
     }
 
     if(breakout_state->current_screen == BREAKOUT_SETTINGS) {
-        if(IsKeyPressed(KEY_UP)) {
-            breakout_state->selected_settings_section = (breakout_state->selected_settings_section - 1 + BREAKOUT_SETTINGS_SECTION_COUNT) % BREAKOUT_SETTINGS_SECTION_COUNT;
-        } else if(IsKeyPressed(KEY_DOWN)) {
-            breakout_state->selected_settings_section = (breakout_state->selected_settings_section + 1) % BREAKOUT_SETTINGS_SECTION_COUNT;
+        if(!breakout_state->waiting_for_key) {
+            if(IsKeyPressed(KEY_UP)) {
+                breakout_state->selected_settings_section = (breakout_state->selected_settings_section - 1 + BREAKOUT_SETTINGS_SECTION_COUNT) % BREAKOUT_SETTINGS_SECTION_COUNT;
+                if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_CONTROLS) {
+                    breakout_state->selected_key_index = 0; // Reset to first key when entering controls
+                }
+            } else if(IsKeyPressed(KEY_DOWN)) {
+                breakout_state->selected_settings_section = (breakout_state->selected_settings_section + 1) % BREAKOUT_SETTINGS_SECTION_COUNT;
+                if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_CONTROLS) {
+                    breakout_state->selected_key_index = 0; // Reset to first key when entering controls
+                }
+            }
         }
 
-        if(IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_RIGHT)) {
-            int direction = IsKeyPressed(KEY_LEFT) ? -1 : 1; // -1 left 1 right
+        if(!breakout_state->waiting_for_key) {
+            if(IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_RIGHT)) {
+                int direction = IsKeyPressed(KEY_LEFT) ? -1 : 1; // -1 left 1 right
 
-            if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_PADDLE_WIDTH) {
-                breakout_state->paddle_width += direction * 10;
-                if(breakout_state->paddle_width < 30) breakout_state->paddle_width = 30;
-                if(breakout_state->paddle_width > 200) breakout_state->paddle_width = 200;
-            } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_ROWS) {
-                breakout_state->brick_rows += direction;
-                if(breakout_state->brick_rows < 2) breakout_state->brick_rows = 2;
-                if(breakout_state->brick_rows > BRICK_MAX_ROWS) breakout_state->brick_rows = BRICK_MAX_ROWS;
-                // Check if bricks don't exced array size
-                while(breakout_state->brick_rows * breakout_state->brick_cols > BRICK_NUM) {
-                    breakout_state->brick_rows--;
+                if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_PADDLE_WIDTH) {
+                    breakout_state->paddle_width += direction * 10;
+                    if(breakout_state->paddle_width < 30) breakout_state->paddle_width = 30;
+                    if(breakout_state->paddle_width > 200) breakout_state->paddle_width = 200;
+                } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_ROWS) {
+                    breakout_state->brick_rows += direction;
+                    if(breakout_state->brick_rows < 2) breakout_state->brick_rows = 2;
+                    if(breakout_state->brick_rows > BRICK_MAX_ROWS) breakout_state->brick_rows = BRICK_MAX_ROWS;
+                    // Check if bricks don't exced array size
+                    while(breakout_state->brick_rows * breakout_state->brick_cols > BRICK_NUM) {
+                        breakout_state->brick_rows--;
+                    }
+                    breakout_state->brick_width = (GetScreenWidth() - (breakout_state->brick_cols + 1) * BRICK_PADD) / breakout_state->brick_cols;
+                    BreakoutSetupLevel(breakout_state);
+                } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_COLS) {
+                    breakout_state->brick_cols += direction;
+                    if(breakout_state->brick_cols < 5) breakout_state->brick_cols = 5;
+                    if(breakout_state->brick_cols > BRICK_MAX_COLS) breakout_state->brick_cols = BRICK_MAX_COLS;
+                    // Check bricks don't exceed array size
+                    while(breakout_state->brick_rows * breakout_state->brick_cols > BRICK_NUM) {
+                        breakout_state->brick_cols--;
+                    }
+                    breakout_state->brick_width = (GetScreenWidth() - (breakout_state->brick_cols + 1) * BRICK_PADD) / breakout_state->brick_cols;
+                    BreakoutSetupLevel(breakout_state);
+                } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LIVES) {
+                    breakout_state->lives += direction;
+                    if(breakout_state->lives < 1) breakout_state->lives = 1;
+                    if(breakout_state->lives > LIVES_MAX) breakout_state->lives = LIVES_MAX;
+                } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LEVEL) {
+                    breakout_state->level += direction;
+                    if(breakout_state->level < 1) breakout_state->level = 1;
+                    if(breakout_state->level > 5) breakout_state->level = 5;
+                    breakout_state->ball_speed_multiplier = 0.5f + (breakout_state->level - 1) * 0.5;
+                } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_BALL_SIZE) {
+                    breakout_state->ball_rad += direction;
+                    if(breakout_state->ball_rad < 3) breakout_state->ball_rad = 3;
+                    if(breakout_state->ball_rad > 15) breakout_state->ball_rad = 15;
+                } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_CONTROLS) {
+                    if(IsKeyPressed(KEY_LEFT)) {
+                        breakout_state->selected_key_index = (breakout_state->selected_key_index - 1 + 2) % 2;
+                    }
+                    if(IsKeyPressed(KEY_RIGHT)) {
+                        breakout_state->selected_key_index = (breakout_state->selected_key_index + 1) % 2;
+                    }
                 }
-                breakout_state->brick_width = (GetScreenWidth() - (breakout_state->brick_cols + 1) * BRICK_PADD) / breakout_state->brick_cols;
-                BreakoutSetupLevel(breakout_state);
-            } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_COLS) {
-                breakout_state->brick_cols += direction;
-                if(breakout_state->brick_cols < 5) breakout_state->brick_cols = 5;
-                if(breakout_state->brick_cols > BRICK_MAX_COLS) breakout_state->brick_cols = BRICK_MAX_COLS;
-                // Check bricks don't exceed array size
-                while(breakout_state->brick_rows * breakout_state->brick_cols > BRICK_NUM) {
-                    breakout_state->brick_cols--;
-                }
-                breakout_state->brick_width = (GetScreenWidth() - (breakout_state->brick_cols + 1) * BRICK_PADD) / breakout_state->brick_cols;
-                BreakoutSetupLevel(breakout_state);
-            } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LIVES) {
-                breakout_state->lives += direction;
-                if(breakout_state->lives < 1) breakout_state->lives = 1;
-                if(breakout_state->lives > LIVES_MAX) breakout_state->lives = LIVES_MAX;
-            } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LEVEL) {
-                breakout_state->level += direction;
-                if(breakout_state->level < 1) breakout_state->level = 1;
-                if(breakout_state->level > 5) breakout_state->level = 5;
-                breakout_state->ball_speed_multiplier = 0.5f + (breakout_state->level - 1) * 0.5;
-            } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_BALL_SIZE) {
-                breakout_state->ball_rad += direction;
-                if(breakout_state->ball_rad < 3) breakout_state->ball_rad = 3;
-                if(breakout_state->ball_rad > 15) breakout_state->ball_rad = 15;
+            }
+
+            // Start rebinding selected key in CONTROLS section
+            if(IsKeyPressed(KEY_ENTER) && breakout_state->selected_settings_section == BREAKOUT_SETTINGS_CONTROLS) {
+                breakout_state->waiting_for_key = true;
+                breakout_state->rebiding_key = breakout_state->selected_key_index + 1;
             }
         }
     }
@@ -334,48 +379,79 @@ void BreakoutDraw(BreakoutGameState *state) {
         case BREAKOUT_MENU: {
             DrawText("BREAKOUT", GetScreenWidth()/2 - MeasureText("BREAKOUT", 60)/2, GetScreenHeight()/4, 60, WHITE);
             DrawText("Press ENTER to Start", GetScreenWidth()/2 - MeasureText("Press ENTER to Start", 30)/2, GetScreenHeight()/2, 30, WHITE);
-            DrawText("Press S for Settings", GetScreenWidth()/2 - MeasureText("Press S for Settings", 30)/2, GetScreenHeight()/2 + 50, 30, WHITE);
+            DrawText("Press S for Settings", GetScreenWidth()/2 - MeasureText("Press S for Settings", 30)/2, GetScreenHeight()/2 + 50, 30, GRAY);
             DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 20)/2, GetScreenHeight()/2 + 100, 20, GRAY);
             break;
         }
         case BREAKOUT_SETTINGS: {
-            DrawText("SETTINGS", GetScreenWidth()/2 - MeasureText("SETTINGS", 40)/2, 50, 40, WHITE);
+            DrawText("SETTINGS", 100, 50, 40, WHITE);
 
-            int start_y = 150;
-            int section_spacing = 100;
+            int left_x = 100;
+            int start_y = 120;
+            int item_spacing = 48;
 
-            int pw_y = start_y;
-            Color pw_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_PADDLE_WIDTH) ? YELLOW : WHITE;
-            DrawText("Paddle Width", GetScreenWidth()/2 - MeasureText("Paddle Width", 30)/2, pw_y, 30, pw_color);
-            DrawText(TextFormat("%d", breakout_state->paddle_width), GetScreenWidth()/2 - MeasureText("100", 30)/2, pw_y + 40, 30, GREEN);
+            Color pw_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_PADDLE_WIDTH) ? RED : WHITE;
+            DrawText(TextFormat("Paddle Width:       %d", breakout_state->paddle_width), left_x, start_y, 24, pw_color);
 
-            int rows_y = start_y + section_spacing;
-            Color rows_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_ROWS) ? YELLOW : WHITE;
-            DrawText("Rows", GetScreenWidth()/2 - MeasureText("Rows", 30)/2, rows_y, 30, rows_color);
-            DrawText(TextFormat("%d", breakout_state->brick_rows), GetScreenWidth()/2 - MeasureText("8", 30)/2, rows_y + 40, 30, GREEN);
+            Color rows_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_ROWS) ? RED : WHITE;
+            DrawText(TextFormat("Rows:               %d", breakout_state->brick_rows), left_x, start_y + item_spacing, 24, rows_color);
 
-            int cols_y = start_y + section_spacing * 2;
-            Color cols_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_COLS) ? YELLOW : WHITE;
-            DrawText("Columns", GetScreenWidth()/2 - MeasureText("Columns", 30)/2, cols_y, 30, cols_color);
-            DrawText(TextFormat("%d", breakout_state->brick_cols), GetScreenWidth()/2 - MeasureText("15", 30)/2, cols_y + 40, 30, GREEN);
+            Color cols_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_COLS) ? RED : WHITE;
+            DrawText(TextFormat("Columns:            %d", breakout_state->brick_cols), left_x, start_y + item_spacing * 2, 24, cols_color);
 
-            int lives_y = start_y + section_spacing * 3;
-            Color lives_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LIVES) ? YELLOW : WHITE;
-            DrawText("Lives", GetScreenWidth()/2 - MeasureText("Lives", 30)/2, lives_y, 30, lives_color);
-            DrawText(TextFormat("%d", breakout_state->lives), GetScreenWidth()/2 - MeasureText("9", 30)/2, lives_y + 40, 30, GREEN);
+            Color lives_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LIVES) ? RED : WHITE;
+            DrawText(TextFormat("Lives:              %d", breakout_state->lives), left_x, start_y + item_spacing * 3, 24, lives_color);
 
-            int level_y = start_y + section_spacing * 4;
-            Color level_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LEVEL) ? YELLOW : WHITE;
-            DrawText("Level", GetScreenWidth()/2 - MeasureText("Level", 30)/2, level_y, 30, level_color);
-            DrawText(TextFormat("%d", breakout_state->level), GetScreenWidth()/2 - MeasureText("5", 30)/2, level_y + 40, 30, GREEN);
+            Color level_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_LEVEL) ? RED : WHITE;
+            DrawText(TextFormat("Level:              %d", breakout_state->level), left_x, start_y + item_spacing * 4, 24, level_color);
 
-            int ball_y = start_y + section_spacing * 5;
-            Color ball_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_BALL_SIZE) ? YELLOW : WHITE;
-            DrawText("Ball Size", GetScreenWidth()/2 - MeasureText("Ball Size", 30)/2, ball_y, 30, ball_color);
-            DrawText(TextFormat("%.1f", breakout_state->ball_rad), GetScreenWidth()/2 - MeasureText("15", 30)/2, ball_y + 40, 30, GREEN);
+            Color ball_color = (breakout_state->selected_settings_section == BREAKOUT_SETTINGS_BALL_SIZE) ? RED : WHITE;
+            DrawText(TextFormat("Ball Size:          %.1f", breakout_state->ball_rad), left_x, start_y + item_spacing * 5, 24, ball_color);
 
-            DrawText("Use UP/DOWN to navigate, LEFT/RIGHT to adjust", GetScreenWidth()/2 - MeasureText("Use UP/DOWN to navigate, LEFT/RIGHT to adjust", 20)/2, GetScreenHeight() - 50, 20, GRAY);
-            DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 20)/2, GetScreenHeight() - 20, 20, WHITE);
+            DrawText("CONTROLS", 100, start_y + item_spacing * 6 + 20, 28, GRAY);
+
+            const char *controls[2] = {"Key Left", "Key Right"};
+            int keys[2] = {
+                breakout_state->key_left,
+                breakout_state->key_right
+            };
+
+            int controls_start_y = start_y + item_spacing * 7 + 20;
+            for(int i = 0; i < 2; i++) {
+                const char *key_name = GetKeyName(keys[i]);
+                char buff[64];
+                snprintf(buff, sizeof(buff), "%s:          %s", controls[i], key_name);
+
+                Color color = WHITE;
+                if(breakout_state->waiting_for_key && breakout_state->rebiding_key == i + 1) {
+                    color = RED;
+                } else if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_CONTROLS && breakout_state->selected_key_index == i) {
+                    color = RED;
+                }
+
+                DrawText(buff, left_x, controls_start_y + i * item_spacing, 24, color);
+
+                // Draw highlight box for selected key
+                if(breakout_state->selected_settings_section == BREAKOUT_SETTINGS_CONTROLS && breakout_state->selected_key_index == i && !breakout_state->waiting_for_key) {
+                    int text_width = MeasureText(buff, 24);
+                    DrawRectangleLines(left_x - 5, controls_start_y + i * item_spacing - 5, text_width + 10, 35, RED);
+                }
+
+                // Draw highlight for rebinding
+                if(breakout_state->waiting_for_key && breakout_state->rebiding_key == i + 1) {
+                    int text_width = MeasureText(buff, 24);
+                    DrawRectangle(left_x - 10, controls_start_y + i * item_spacing - 5, text_width + 20, 35, ColorAlpha(RED, 0.3));
+                }
+            }
+
+            int instructions_y = GetScreenHeight() - 120;
+            if(!breakout_state->waiting_for_key) {
+                DrawText("UP/DOWN: Navigate   LEFT/RIGHT: Change values or select key   ENTER: Rebind key", left_x, instructions_y, 22, GRAY);
+            } else {
+                DrawText("PRESS A KEY TO BIND (ESC TO CANCEL)", GetScreenWidth()/2 - MeasureText("PRESS A KEY TO BIND (ESC TO CANCEL)", 25)/2, instructions_y + 20, 25, RED);
+            }
+
+            DrawText("Press ESC to return", left_x, GetScreenHeight() - 30, 20, GRAY);
             break;
         }
         case BREAKOUT_VICTORY: {
@@ -472,10 +548,10 @@ void BreakoutDraw(BreakoutGameState *state) {
             int menu_start_y = GetScreenHeight()/2 - 20;
             int menu_spacing = 50;
 
-            Color resume_color = (breakout_state->selected_pause == BREAKOUT_PAUSE_RESUME) ? YELLOW : WHITE;
-            Color restart_color = (breakout_state->selected_pause == BREAKOUT_PAUSE_RESTART) ? YELLOW : WHITE;
-            Color settings_color = (breakout_state->selected_pause == BREAKOUT_PAUSE_SETTINGS) ? YELLOW : WHITE;
-            Color quit_color = (breakout_state->selected_pause == BREAKOUT_PAUSE_QUIT) ? YELLOW : WHITE;
+            Color resume_color = (breakout_state->selected_pause == BREAKOUT_PAUSE_RESUME) ? RED : WHITE;
+            Color restart_color = (breakout_state->selected_pause == BREAKOUT_PAUSE_RESTART) ? RED : WHITE;
+            Color settings_color = (breakout_state->selected_pause == BREAKOUT_PAUSE_SETTINGS) ? RED : WHITE;
+            Color quit_color = (breakout_state->selected_pause == BREAKOUT_PAUSE_QUIT) ? RED : WHITE;
 
             DrawText("Resume", GetScreenWidth()/2 - MeasureText("Resume", 30)/2, menu_start_y, 30, resume_color);
             DrawText("Restart", GetScreenWidth()/2 - MeasureText("Restart", 30)/2, menu_start_y + menu_spacing, 30, restart_color);

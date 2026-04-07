@@ -77,7 +77,7 @@ bool PongUpdate(void *state) {
     }
 
     if(pong_state->waiting_for_key) {
-        for(int i = 32; i < 256; i++) {
+        for(int i = FIRST_KEY; i < LAST_KEY; i++) {
             if(IsKeyPressed(i)) {
                 switch(pong_state->rebind_key) {
                     case 1: pong_state->key_player_up = i; break;
@@ -270,8 +270,8 @@ void PongDraw(void *state) {
                 // Draw options
                 DrawText("Press 1 for PvP", GetScreenWidth()/2 - MeasureText("Press 1 for PvP", 30)/2, GetScreenHeight()/2, 30, WHITE);
                 DrawText("Press 2 for PvE", GetScreenWidth()/2 - MeasureText("Press 2 for PvE", 30)/2, GetScreenHeight()/2 + 40, 30, WHITE);
-                DrawText("Press S for Settings", GetScreenWidth()/2 - MeasureText("Press S for Settings", 30)/2, GetScreenHeight()/2 + 80, 30, WHITE);
-                DrawText("Press ESC to Exit", GetScreenWidth()/2 - MeasureText("Press ESC to Exit", 30)/2, GetScreenHeight()/2 + 120, 30, WHITE);
+                DrawText("Press S for Settings", GetScreenWidth()/2 - MeasureText("Press S for Settings", 30)/2, GetScreenHeight()/2 + 80, 30, GRAY);
+                DrawText("Press ESC to Exit", GetScreenWidth()/2 - MeasureText("Press ESC to Exit", 30)/2, GetScreenHeight()/2 + 120, 30, GRAY);
                 break;
         }
         case PONG_GAMEPLAY: {
@@ -306,10 +306,11 @@ void PongDraw(void *state) {
                 break;
         }
         case PONG_SETTINGS: {
-                DrawText("SETTINGS", GetScreenWidth()/2 - MeasureText("SETTINGS", 40)/2, 50, 40, WHITE);
+                DrawText("SETTINGS", 100, 50, 40, WHITE);
 
-                int start_y = 150;
-                int section_spacing = 120;
+                int left_x = 100;
+                int start_y = 120;
+                int item_spacing = 48;
 
                 if(!pong_state->waiting_for_key) {
                     // UP/DOWN: Navigate between sections
@@ -368,57 +369,16 @@ void PongDraw(void *state) {
                     }
                 }
 
-                // Point section
-                int vp_y = start_y;
-                Color vp_title_color = (pong_state->selected_settings_section == SETTINGS_VICTORY_POINTS) ? YELLOW : WHITE;
-                DrawText("VICTORY POINTS", GetScreenWidth()/2 - MeasureText("VICTORY POINTS", 30)/2, vp_y, 30, vp_title_color);
+                // Points section
+                Color vp_color = (pong_state->selected_settings_section == SETTINGS_VICTORY_POINTS) ? RED : WHITE;
+                DrawText(TextFormat("Victory Points:    %d", pong_state->victory_points), left_x, start_y, 24, vp_color);
 
-                // Draw selection indicator
-                if(pong_state->selected_settings_section == SETTINGS_VICTORY_POINTS) {
-                    DrawText(">", GetScreenWidth()/2 - MeasureText("VICTORY POINTS", 30)/2 - 30, vp_y, 30, YELLOW);
-                }
+                // Difficulty section
+                Color diff_color = (pong_state->selected_settings_section == SETTINGS_DIFFICULTY) ? RED : WHITE;
+                DrawText(TextFormat("Difficulty:        %d", pong_state->difficulty_level + 1), left_x, start_y + item_spacing, 24, diff_color);
 
-                int vp_options_y = vp_y + 50;
-                int total_width = VICTORY_POINTS_OPTIONS * 60 - 10;
-                int start_x = GetScreenWidth()/2 - total_width/2;
+                DrawText("CONTROLS", 100, start_y + item_spacing * 2 + 20, 28, GRAY);
 
-                for(int i = 0; i < VICTORY_POINTS_OPTIONS; i++) {
-                    Color color = (victory_points_options[i] == pong_state->victory_points) ? GREEN : GRAY;
-                    DrawRectangle(start_x + i * 60, vp_options_y, 40, 40, color);
-                    DrawText(TextFormat("%d", victory_points_options[i]), start_x + i * 60 + 10, vp_options_y + 10, 20, BLACK);
-                }
-
-                // Dificulty section
-                int diff_y = start_y + section_spacing;
-                Color diff_title_color = (pong_state->selected_settings_section == SETTINGS_DIFFICULTY) ? YELLOW : WHITE;
-                DrawText("DIFFICULTY", GetScreenWidth()/2 - MeasureText("DIFFICULTY", 30)/2, diff_y, 30, diff_title_color);
-
-                // Selection indicator
-                if(pong_state->selected_settings_section == SETTINGS_DIFFICULTY) {
-                    DrawText(">", GetScreenWidth()/2 - MeasureText("DIFFICULTY", 30)/2 - 30, diff_y, 30, YELLOW);
-                }
-
-                int diff_options_y = diff_y + 50;
-                int diff_total_width = DIFFICULTY_LEVELS * 50 - 10;
-                int diff_start_x = GetScreenWidth()/2 - diff_total_width/2;
-
-                for(int i = 0; i < DIFFICULTY_LEVELS; i++) {
-                    Color color = (i == pong_state->difficulty_level) ? RED : GRAY;
-                    DrawRectangle(diff_start_x + i * 50, diff_options_y, 30, 30, color);
-                    DrawText(TextFormat("%d", i + 1), diff_start_x + i * 50 + 8, diff_options_y + 7, 15, WHITE);
-                }
-
-                // === CONTROLS SECTION ===
-                int controls_y = start_y + section_spacing * 2;
-                Color controls_title_color = (pong_state->selected_settings_section == SETTINGS_CONTROLS) ? YELLOW : WHITE;
-                DrawText("CONTROLS", GetScreenWidth()/2 - MeasureText("CONTROLS", 30)/2, controls_y, 30, controls_title_color);
-
-                // Draw selection indicator
-                if(pong_state->selected_settings_section == SETTINGS_CONTROLS) {
-                    DrawText(">", GetScreenWidth()/2 - MeasureText("CONTROLS", 30)/2 - 30, controls_y, 30, YELLOW);
-                }
-
-                // Controls
                 const char *controls[4] = {"Player Up", "Player Down", "Opponent Up", "Opponent Down"};
                 int keys[4] = {
                     pong_state->key_player_up,
@@ -427,45 +387,42 @@ void PongDraw(void *state) {
                     pong_state->key_opponent_down
                 };
 
-                int controls_options_y = controls_y + 45;
+                int controls_start_y = start_y + item_spacing * 3 + 20;
                 for(int i = 0; i < 4; i++) {
                     const char *key_name = GetKeyName(keys[i]);
                     char buff[64];
-                    snprintf(buff, sizeof(buff), "%s: %s", controls[i], key_name);
-
-                    int text_width = MeasureText(buff, 20);
-                    int x_pos = (GetScreenWidth() - text_width) / 2;
+                    snprintf(buff, sizeof(buff), "%s:     %s", controls[i], key_name);
 
                     Color color = WHITE;
                     if(pong_state->waiting_for_key && pong_state->rebind_key == i + 1) {
                         color = RED;
                     } else if(pong_state->selected_settings_section == SETTINGS_CONTROLS && pong_state->selected_key_index == i) {
-                        color = YELLOW;
+                        color = RED;
                     }
 
-                    DrawText(buff, x_pos, controls_options_y + i * 35, 20, color);
+                    DrawText(buff, left_x, controls_start_y + i * item_spacing, 24, color);
 
                     // Draw highlight box for selected key
                     if(pong_state->selected_settings_section == SETTINGS_CONTROLS && pong_state->selected_key_index == i && !pong_state->waiting_for_key) {
-                        DrawRectangleLines(x_pos - 5, controls_options_y + i * 35 - 5, text_width + 10, 30, YELLOW);
+                        int text_width = MeasureText(buff, 24);
+                        DrawRectangleLines(left_x - 5, controls_start_y + i * item_spacing - 5, text_width + 10, 35, RED);
                     }
 
                     // Draw highlight for rebinding
                     if(pong_state->waiting_for_key && pong_state->rebind_key == i + 1) {
-                        DrawRectangle(x_pos - 10, controls_options_y + i * 35 - 5, text_width + 20, 30, ColorAlpha(RED, 0.3));
+                        int text_width = MeasureText(buff, 24);
+                        DrawRectangle(left_x - 10, controls_start_y + i * item_spacing - 5, text_width + 20, 35, ColorAlpha(RED, 0.3));
                     }
                 }
 
                 int instructions_y = GetScreenHeight() - 120;
                 if(!pong_state->waiting_for_key) {
-                    DrawText("UP/DOWN: Navigate sections", GetScreenWidth()/2 - MeasureText("UP/DOWN: Navigate sections", 18)/2, instructions_y, 18, GRAY);
-                    DrawText("LEFT/RIGHT: Change values or select key", GetScreenWidth()/2 - MeasureText("LEFT/RIGHT: Change values or select key", 18)/2, instructions_y + 25, 18, GRAY);
-                    DrawText("ENTER: Rebind selected key", GetScreenWidth()/2 - MeasureText("ENTER: Rebind selected key", 18)/2, instructions_y + 50, 18, GRAY);
+                    DrawText("UP/DOWN: Navigate   LEFT/RIGHT: Change values or select key   ENTER: Rebind key", left_x, instructions_y, 22, GRAY);
                 } else {
-                    DrawText("PRESS A KEY TO BIND (ESC TO CANCEL)", GetScreenWidth()/2 - MeasureText("PRESS A KEY TO BIND (ESC TO CANCEL)", 25)/2, instructions_y + 20, 25, YELLOW);
+                    DrawText("PRESS A KEY TO BIND (ESC TO CANCEL)", GetScreenWidth()/2 - MeasureText("PRESS A KEY TO BIND (ESC TO CANCEL)", 25)/2, instructions_y + 20, 25, RED);
                 }
 
-                DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 18)/2, GetScreenHeight() - 30, 18, WHITE);
+                DrawText("Press ESC to return", left_x, GetScreenHeight() - 30, 20, GRAY);
                 break;
         }
         case PONG_VICTORY: {

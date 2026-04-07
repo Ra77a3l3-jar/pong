@@ -41,6 +41,7 @@ typedef enum {
     BREAKOUT_SETTINGS_LIVES,
     BREAKOUT_SETTINGS_LEVEL,
     BREAKOUT_SETTINGS_BALL_SIZE,
+    BREAKOUT_SETTINGS_CONTROLS,
     BREAKOUT_SETTINGS_SECTION_COUNT
 } BreakoutSettingsSection;
 
@@ -86,6 +87,9 @@ typedef struct {
 
     int key_left;
     int key_right;
+    bool waiting_for_key;
+    int rebiding_key; // Current key being rebinded
+    int selected_key_index;
 
     Sound paddle_sound;
     Sound brick_sound;
