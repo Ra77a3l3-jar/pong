@@ -4,28 +4,42 @@
 #include <raylib.h>
 #include <stdbool.h>
 
-#define SNAKE_WIDTH 7
-#define SNAKE_HEIGHT 7
+#define SNAKE_SIZE 20
+#define INIT_SNAKE_LENGTH 3
+#define MAX_SNAKE_LENGHT 100
+#define MAX_TRIES_FOOD 60
+#define GRID_SIZE 20
+#define SPEED 8
 
 typedef enum {
     SNAKE_MENU,
     SNAKE_GAMEPLAY,
+    SNAKE_PAUSE,
     SNAKE_VICTORY,
     SNAKE_GAME_OVER
 } SnakeScreen;
+
+typedef enum {
+    UP,
+    RIGHT,
+    DOWN,
+    LEFT
+} SnakeDirections;
 
 typedef struct {
     SnakeScreen screen;
     SnakeScreen prev_screen;
 
-    int grid_size;
+    int cell_size;
     int grid_width;
     int grid_height;
 
-    Rectangle snake_head;
-    Rectangle snake_body[100];
-    int snake_speed;
-    int snake_direction; // 0: up 1: right 2: down 3: left
+    Rectangle snake_body[MAX_SNAKE_LENGHT];
+    int lenght;
+    int speed;
+    int move_counter;
+    SnakeDirections direction;
+    SnakeDirections next_direction;
 
     Vector2 food;
     int food_timer;
