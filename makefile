@@ -1,11 +1,11 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -I./include -I./include/games/pong -I./include/games/breakout
+CFLAGS = -Wall -Wextra -std=c99 -I./include -I./include/games/pong -I./include/games/breakout -I./include/games/snake
 LDFLAGS = -lraylib -lm -lpthread -ldl -lrt -lX11
 
 # Directories
 SRC_DIR = src
-INC_DIR = include include/games include/games/pong include/games/breakout
+INC_DIR = include include/games include/games/pong include/games/breakout include/games/snake
 BUILD_DIR = build
 BIN_DIR = bin
 
@@ -13,7 +13,7 @@ BIN_DIR = bin
 TARGET = $(BIN_DIR)/game
 
 # Source and object files
-SRCS = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SRC_DIR)/games/pong/*.c) $(wildcard $(SRC_DIR)/games/breakout/*.c)
+SRCS = $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SRC_DIR)/games/pong/*.c) $(wildcard $(SRC_DIR)/games/breakout/*.c) $(wildcard $(SRC_DIR)/games/snake/*.c)
 OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
 # Default target

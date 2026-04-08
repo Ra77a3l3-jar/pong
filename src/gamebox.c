@@ -4,6 +4,7 @@
 #include "gamebox.h"
 #include "pong.h"
 #include "breakout.h"
+#include "snake.h"
 
 void InitGameBox(GameBoxState *state) {
     state->current_screen = GAMEBOX_MENU;
@@ -25,9 +26,9 @@ bool UpdateGameBox(GameBoxState *state) {
 
         // Handle arrow key navigation
         if(IsKeyPressed(KEY_UP)) {
-            state->selected_game = (state->selected_game - 1 + 2) % 2;
+            state->selected_game = (state->selected_game - 1 + 3) % 3;
         } else if(IsKeyPressed(KEY_DOWN)) {
-            state->selected_game = (state->selected_game + 1) % 2;
+            state->selected_game = (state->selected_game + 1) % 3;
         }
 
         // Handle game selection with Enter/Space
@@ -39,6 +40,10 @@ bool UpdateGameBox(GameBoxState *state) {
             } else if(state->selected_game == 1) {
                 RegisterBreakoutGame(state);
                 state->current_screen = GAMEBOX_BREAKOUT;
+                state->prev_screen = GAMEBOX_MENU;
+            } else if(state->selected_game == 2) {
+                RegisterSnakeGame(state);
+                state->current_screen = GAMEBOX_SNAKE;
                 state->prev_screen = GAMEBOX_MENU;
             }
         }
@@ -76,11 +81,13 @@ void DrawGameBox(GameBoxState *state) {
         // Game selection with highlighting
         Color pong_color = (state->selected_game == 0) ? YELLOW : WHITE;
         Color breakout_color = (state->selected_game == 1) ? YELLOW : WHITE;
+        Color snake_color = (state->selected_game == 2) ? YELLOW : WHITE;
 
         DrawText("1. PONG", GetScreenWidth()/2 - MeasureText("1. PONG", 50)/2, 300, 40, pong_color);
         DrawText("2. BREAKOUT", GetScreenWidth()/2 - MeasureText("2. BREAKOUT", 50)/2, 360, 40, breakout_color);
-        DrawText("Use UP/DOWN arrows to select, ENTER to play", GetScreenWidth()/2 - MeasureText("Use UP/DOWN arrows to select, ENTER to play", 25)/2, 400, 25, GRAY);
-        DrawText("Press ESC to exit", GetScreenWidth()/2 - MeasureText("Press ESC to exit", 20)/2, 430, 20, GRAY);
+        DrawText("3. SNAKE", GetScreenWidth()/2 - MeasureText("3. SNAKE", 50)/2, 420, 40, snake_color);
+        DrawText("Use UP/DOWN arrows to select, ENTER to play", GetScreenWidth()/2 - MeasureText("Use UP/DOWN arrows to select, ENTER to play", 25)/2, 460, 25, GRAY);
+        DrawText("Press ESC to exit", GetScreenWidth()/2 - MeasureText("Press ESC to exit", 20)/2, 490, 20, GRAY);
     } else {
         // Draw current game
         if(state->game_draw) {
@@ -112,4 +119,13 @@ void RegisterBreakoutGame(GameBoxState *state) {
     state->game_update = (GameUpdateFunc)BreakoutUpdate;
     state->game_draw = (GameDrawFunc)BreakoutDraw;
     state->game_close = (GameCloseFunc)BreakoutClose;
+}
+
+void RegisterSnakeGame(GameBoxState *state) {
+    state->game_state = malloc(sizeof(SnakeGameState));
+
+    state->game_init = (GameInitFunc)SnakeInit;
+    state->game_update = (GameUpdateFunc)SnakeUpdate;
+    state->game_draw = (GameDrawFunc)SnakeDraw;
+    state->game_close = (GameCloseFunc)SnakeClose;
 }
