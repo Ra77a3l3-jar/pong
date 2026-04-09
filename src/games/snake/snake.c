@@ -97,7 +97,7 @@ bool SnakeUpdate(SnakeGameState *state) {
         } else if(IsKeyDown(snake_state->key_down) && snake_state->direction != UP) {
             snake_state->next_direction = DOWN;
         } else if(IsKeyDown(snake_state->key_right) && snake_state->direction != LEFT) {
-            snake_state->next_direction = LEFT;
+            snake_state->next_direction = RIGHT;
         } else if(IsKeyDown(snake_state->key_left) && snake_state->direction != RIGHT) {
             snake_state->next_direction = LEFT;
         }
@@ -128,7 +128,45 @@ bool SnakeUpdate(SnakeGameState *state) {
                     break;
             }
 
+            // Check collisions with walls
+            if(snake_state->snake_body[0].x < 0 ||
+               snake_state->snake_body[0].x >= snake_state->grid_width ||
+               snake_state->snake_body[0].y < 0 ||
+               snake_state->snake_body[0].y >= snake_state->grid_height) {
+                snake_state->game_over = true;
+                snake_state->current_screen = SNAKE_GAME_OVER;
+            }
 
+            // Check for collision with rest of the body
+            for(int i = 1; i < snake_state->lenght; i++) {
+                if(snake_state->snake_body[0].x == snake_state->snake_body[i].x &&
+                   snake_state->snake_body[0].y == snake_state->snake_body[i].y) {
+                    snake_state->game_over = true;
+                    snake_state->current_screen = SNAKE_GAME_OVER;
+                }
+            }
+
+            // Food eaten
+            if(snake_state->snake_body[0].x == snake_state->food.x &&
+               snake_state->snake_body[0].y == snake_state->food.y) {
+                // Snake grows
+                if(snake_state->lenght < MAX_SNAKE_LENGHT) {
+                    snake_state->lenght++;
+                    // Copy tail position for new piece
+                    snake_state->snake_body[snake_state->lenght - 1] = snake_state->snake_body[snake_state->lenght - 2];
+                }
+
+                // Increase score
+                snake_state->score += 1 * snake_state->level;
+
+                // Victory if 90% of the entire
+                if(snake_state->lenght >= snake_state->grid_width * snake_state->grid_height * 0.9) {
+                    snake_state->victory = true;
+                    snake_state->current_screen = SNAKE_VICTORY;
+                } else {
+                    SnakeFood(snake_state);
+                }
+            }
         }
     }
     return true;
@@ -136,6 +174,10 @@ bool SnakeUpdate(SnakeGameState *state) {
 
 void SnakeDraw(SnakeGameState *state) {
     SnakeGameState *snake_state = (SnakeGameState*)state;
+
+    // Grid ofset to centre
+    int offset_x = (GetScreenWidth() - snake_state->grid_width * snake_state->cell_size) / 2;
+    int offset_y = (GetScreenHeight() - snake_state->grid_height * snake_state->cell_size) / 2;
 
     ClearBackground(BLACK);
 
@@ -145,6 +187,54 @@ void SnakeDraw(SnakeGameState *state) {
             DrawText("Press ENTER to Start", GetScreenWidth()/2 - MeasureText("Press ENTER to Start", 30)/2, GetScreenHeight()/2, 30, WHITE);
             DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 20)/2, GetScreenHeight()/2 + 50, 20, GRAY);
             break;
+        }
+        case  SNAKE_GAMEPLAY: {
+            // Draw grid background
+            for(int x = 0; x < snake_state->grid_width; x++) {
+                for(int y = 0; y < snake_state->grid_height; y++) {
+                    DrawRectangleLines(
+                        offset_x + x * snake_state->cell_size,
+                        offset_y + y * snake_state->cell_size,
+                        snake_state->cell_size,
+                        snake_state->cell_size,
+                        ColorAlpha(WHITE, 0.2)
+                    );
+                }
+            }
+
+            // Draw food
+            DrawRectangle(
+                offset_x + snake_state->food.x * snake_state->cell_size * 2,
+                offset_y + snake_state->food.y * snake_state->cell_size * 2,
+                snake_state->cell_size - 4,
+                snake_state->cell_size - 4,
+                RED
+            );
+
+            // Draw snake
+            for(int i = 0; i < snake_state->lenght; i++) {
+                Color body_color;
+
+                if(i == 0) {
+                    body_color = DARKGREEN;
+                } else {
+                    body_color = GREEN;
+                }
+
+                DrawRectangle(
+                    offset_x + snake_state->snake_body[i].x * snake_state->cell_size + 1,
+                    offset_y + snake_state->snake_body[i].y * snake_state->cell_size + 1,
+                    snake_state->cell_size - 2,
+                    snake_state->cell_size - 2,
+                    body_color
+                );
+
+                // Draw info
+                DrawText(TextFormat("Score   %d", snake_state->score), 20, 20, 20, WHITE);
+                DrawText(TextFormat("Level   %d", snake_state->level), GetScreenWidth() - 120, 20, 20, WHITE);
+                DrawText(TextFormat("Speed   %d", snake_state->speed), GetScreenWidth()/2 - 50, 20, 20, WHITE);
+                break;
+            }
         }
     }
 }
