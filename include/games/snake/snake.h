@@ -27,7 +27,7 @@ typedef enum {
 } SnakeDirections;
 
 typedef struct {
-    SnakeScreen screen;
+    SnakeScreen current_screen;
     SnakeScreen prev_screen;
 
     int cell_size;

@@ -90,23 +90,27 @@ bool BreakoutUpdate(BreakoutGameState *state) {
     BreakoutGameState *breakout_state = (BreakoutGameState*)state;
 
     if(IsKeyPressed(KEY_ESCAPE)) {
-        if(breakout_state->current_screen == BREAKOUT_GAMEPLAY) {
-            breakout_state->prev_screen = breakout_state->current_screen;
-            breakout_state->current_screen = BREAKOUT_PAUSED;
-        } else if(breakout_state->current_screen == BREAKOUT_PAUSED) {
-            breakout_state->current_screen = BREAKOUT_GAMEPLAY;
-            // Update paddle rectangle with current width
-            breakout_state->paddle.width = breakout_state->paddle_width;
-            breakout_state->paddle.x = GetScreenWidth()/2 - breakout_state->paddle_width/2;
-        } else if(breakout_state->current_screen == BREAKOUT_SETTINGS) {
-            breakout_state->current_screen = breakout_state->prev_screen;
-            // Update paddle rectangle if returning to gameplay
-            if(breakout_state->prev_screen == BREAKOUT_GAMEPLAY || breakout_state->prev_screen == BREAKOUT_PAUSED) {
+        switch(breakout_state->current_screen) {
+            case BREAKOUT_GAMEPLAY:
+                breakout_state->prev_screen = breakout_state->current_screen;
+                breakout_state->current_screen = BREAKOUT_PAUSED;
+                break;
+            case BREAKOUT_PAUSED:
+                breakout_state->current_screen = breakout_state->prev_screen;
+                // Update paddle rectangle with current width
                 breakout_state->paddle.width = breakout_state->paddle_width;
                 breakout_state->paddle.x = GetScreenWidth()/2 - breakout_state->paddle_width/2;
-            }
-        } else if(breakout_state->current_screen == BREAKOUT_MENU) {
-            return false;
+                break;
+            case BREAKOUT_SETTINGS:
+                breakout_state->current_screen = breakout_state->prev_screen;
+                // Update paddle rectangle if returning to gameplay
+                if(breakout_state->prev_screen == BREAKOUT_GAMEPLAY || breakout_state->prev_screen == BREAKOUT_PAUSED) {
+                    breakout_state->paddle.width = breakout_state->paddle_width;
+                    breakout_state->paddle.x = GetScreenWidth()/2 - breakout_state->paddle_width/2;
+                }
+                break;
+            case BREAKOUT_MENU:
+                return false;
         }
     }
 

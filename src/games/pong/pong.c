@@ -102,15 +102,20 @@ bool PongUpdate(void *state) {
     }
 
     if(IsKeyPressed(KEY_ESCAPE)) {
-        if(pong_state->current_screen == PONG_GAMEPLAY) {
-            pong_state->current_screen = PONG_PAUSED;
-        } else if(pong_state->current_screen == PONG_PAUSED) {
-            pong_state->current_screen = PONG_GAMEPLAY;
-        } else if(pong_state->current_screen == PONG_SETTINGS) {
-            pong_state->current_screen = pong_state->prev_screen;
-        } else {
-            // Menu and Victory screen
-            return false;
+        switch(pong_state->current_screen) {
+            case PONG_GAMEPLAY:
+                pong_state->prev_screen = pong_state->current_screen;
+                pong_state->current_screen = PONG_PAUSED;
+                break;
+            case PONG_PAUSED:
+                pong_state->prev_screen = pong_state->current_screen;
+                pong_state->current_screen = PONG_GAMEPLAY;
+                break;
+            case PONG_SETTINGS:
+                pong_state->current_screen = pong_state->prev_screen;
+                break;
+            default:
+                return false;
         }
     }
 
