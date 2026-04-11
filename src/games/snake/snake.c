@@ -7,7 +7,7 @@ static void SnakeFood(SnakeGameState *state) {
     int tries = 0;
     int max_tries = MAX_TRIES_FOOD;
 
-    while(!val_position && tries <= max_tries) {
+    while(!val_position && tries < max_tries) {
         tries++;
         state->food.x = GetRandomValue(0, state->grid_width - 1);
         state->food.y = GetRandomValue(0, state->grid_height - 1);
@@ -61,6 +61,8 @@ void SnakeInit(SnakeGameState *state) {
     snake_state->key_down = KEY_S;
     snake_state->key_left = KEY_A;
     snake_state->key_right = KEY_D;
+
+    snake_state->selected_pause = SNAKE_PAUSE_RESUME;
 
     SnakeReset(snake_state);
 }
@@ -169,6 +171,32 @@ bool SnakeUpdate(SnakeGameState *state) {
             }
         }
     }
+
+    if(snake_state->current_screen == SNAKE_PAUSE) {
+        if(IsKeyPressed(KEY_UP)) {
+            snake_state->selected_pause = (snake_state->selected_pause + SNAKE_PAUSE_OPTION_COUNT - 1) % SNAKE_PAUSE_OPTION_COUNT;
+        } else if(IsKeyPressed(KEY_DOWN)) {
+            snake_state->selected_pause = (snake_state->selected_pause + 1) % SNAKE_PAUSE_OPTION_COUNT;
+        } else if(IsKeyPressed(KEY_ENTER)) {
+            switch(snake_state->selected_pause) {
+                case SNAKE_PAUSE_RESUME: {
+                    snake_state->current_screen = SNAKE_GAMEPLAY;
+                    break;
+                }
+                case SNAKE_PAUSE_RESTART: {
+                    SnakeInit(state);
+                    snake_state->current_screen = SNAKE_GAMEPLAY;
+                    break;
+                }
+                case SNAKE_PAUSE_QUIT: {
+                    SnakeInit(state);
+                    break;
+                }
+                default: break;
+            }
+        }
+    }
+    
     return true;
 }
 
@@ -229,12 +257,73 @@ void SnakeDraw(SnakeGameState *state) {
                     body_color
                 );
 
-                // Draw info
-                DrawText(TextFormat("Score   %d", snake_state->score), 20, 20, 20, WHITE);
-                DrawText(TextFormat("Level   %d", snake_state->level), GetScreenWidth() - 120, 20, 20, WHITE);
-                DrawText(TextFormat("Speed   %d", snake_state->speed), GetScreenWidth()/2 - 50, 20, 20, WHITE);
-                break;
             }
+
+            // Draw info
+            DrawText(TextFormat("Score   %d", snake_state->score), 20, 20, 20, WHITE);
+            DrawText(TextFormat("Level   %d", snake_state->level), GetScreenWidth() - 120, 20, 20, WHITE);
+            DrawText(TextFormat("Speed   %d", snake_state->speed), GetScreenWidth()/2 - 50, 20, 20, WHITE);
+            break;
+        }
+        case SNAKE_PAUSE: {
+                // Draw grid background
+            for(int x = 0; x < snake_state->grid_width; x++) {
+                for(int y = 0; y < snake_state->grid_height; y++) {
+                    DrawRectangleLines(
+                        offset_x + x * snake_state->cell_size,
+                        offset_y + y * snake_state->cell_size,
+                        snake_state->cell_size,
+                        snake_state->cell_size,
+                        ColorAlpha(WHITE, 0.2)
+                    );
+                }
+            }
+
+            // Draw food
+            DrawRectangle(
+                offset_x + snake_state->food.x * snake_state->cell_size * 2,
+                offset_y + snake_state->food.y * snake_state->cell_size * 2,
+                snake_state->cell_size - 4,
+                snake_state->cell_size - 4,
+                RED
+            );
+
+            // Draw snake
+            for(int i = 0; i < snake_state->lenght; i++) {
+                Color body_color;
+
+                if(i == 0) {
+                    body_color = DARKGREEN;
+                } else {
+                    body_color = GREEN;
+                }
+
+                DrawRectangle(
+                    offset_x + snake_state->snake_body[i].x * snake_state->cell_size + 1,
+                    offset_y + snake_state->snake_body[i].y * snake_state->cell_size + 1,
+                    snake_state->cell_size - 2,
+                    snake_state->cell_size - 2,
+                    body_color
+                );
+            }
+            // Draw info
+            DrawText(TextFormat("Score   %d", snake_state->score), 20, 20, 20, WHITE);
+            DrawText(TextFormat("Level   %d", snake_state->level), GetScreenWidth() - 120, 20, 20, WHITE);
+            DrawText(TextFormat("Speed   %d", snake_state->speed), GetScreenWidth()/2 - 50, 20, 20, WHITE);
+
+            int menu_start_y = GetScreenHeight()/2 - 20;
+            int menu_spacing = 50;
+
+            Color resume_color = (snake_state->selected_pause == SNAKE_PAUSE_RESUME) ? RED : WHITE;
+            Color restart_color = (snake_state->selected_pause == SNAKE_PAUSE_RESTART) ? RED : WHITE;
+            Color quit_color = (snake_state->selected_pause == SNAKE_PAUSE_QUIT) ? RED : WHITE;
+
+            DrawText("Resume", GetScreenWidth()/2 - MeasureText("Resume", 30)/2, menu_start_y, 30, resume_color);
+            DrawText("Restart", GetScreenWidth()/2 - MeasureText("Restart", 30)/2, menu_start_y + menu_spacing, 30, restart_color);
+            DrawText("Quit to Menu", GetScreenWidth()/2 - MeasureText("Quit to Menu", 30)/2, menu_start_y + menu_spacing * 3, 30, quit_color);
+
+            DrawText("Use UP/DOWN to navigate, ENTER to select", GetScreenWidth()/2 - MeasureText("Use UP/DOWN to navigate, ENTER to select", 20)/2, GetScreenHeight() - 50, 20, GRAY);
+            break;
         }
     }
 }

@@ -12,6 +12,13 @@
 #define SPEED 8
 
 typedef enum {
+    SNAKE_PAUSE_RESUME,
+    SNAKE_PAUSE_RESTART,
+    SNAKE_PAUSE_QUIT,
+    SNAKE_PAUSE_OPTION_COUNT
+} SnakePauseOptions;
+
+typedef enum {
     SNAKE_MENU,
     SNAKE_GAMEPLAY,
     SNAKE_PAUSE,
@@ -56,6 +63,7 @@ typedef struct {
     int key_up;
     int key_down;
 
+    SnakePauseOptions selected_pause;
 } SnakeGameState;
 
 void SnakeInit(SnakeGameState *state);
