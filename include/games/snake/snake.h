@@ -11,6 +11,9 @@
 #define GRID_SIZE 20
 #define SPEED 8
 
+#define VICTORY_SCREEN_DURATION 600 // 5 seconds at 120fps
+#define GAMEOVER_SCREEN_DURATION 600
+
 typedef enum {
     SNAKE_PAUSE_RESUME,
     SNAKE_PAUSE_RESTART,

@@ -56,6 +56,8 @@ void SnakeInit(SnakeGameState *state) {
     snake_state->score = 0;
     snake_state->game_over = false;
     snake_state->victory = false;
+    snake_state->victory_timer = 0;
+    snake_state->game_over_timer = 0;
 
     snake_state->key_up = KEY_W;
     snake_state->key_down = KEY_S;
@@ -145,6 +147,7 @@ bool SnakeUpdate(SnakeGameState *state) {
                    snake_state->snake_body[0].y == snake_state->snake_body[i].y) {
                     snake_state->game_over = true;
                     snake_state->current_screen = SNAKE_GAME_OVER;
+                    snake_state->game_over_timer = GAMEOVER_SCREEN_DURATION;
                 }
             }
 
@@ -165,6 +168,7 @@ bool SnakeUpdate(SnakeGameState *state) {
                 if(snake_state->lenght >= snake_state->grid_width * snake_state->grid_height * 0.9) {
                     snake_state->victory = true;
                     snake_state->current_screen = SNAKE_VICTORY;
+                    snake_state->victory_timer = VICTORY_SCREEN_DURATION;
                 } else {
                     SnakeFood(snake_state);
                 }
@@ -323,6 +327,38 @@ void SnakeDraw(SnakeGameState *state) {
             DrawText("Quit to Menu", GetScreenWidth()/2 - MeasureText("Quit to Menu", 30)/2, menu_start_y + menu_spacing * 3, 30, quit_color);
 
             DrawText("Use UP/DOWN to navigate, ENTER to select", GetScreenWidth()/2 - MeasureText("Use UP/DOWN to navigate, ENTER to select", 20)/2, GetScreenHeight() - 50, 20, GRAY);
+            break;
+        }
+        case SNAKE_VICTORY: {
+            DrawText("VICTORY!", GetScreenWidth()/2 - MeasureText("VICTORY!", 60)/2, GetScreenHeight()/2 - 100, 60, GREEN);
+            DrawText(TextFormat("Score: %d", snake_state->score), GetScreenWidth()/2 - MeasureText("Score: 100", 40)/2, GetScreenHeight()/2, 40, WHITE);
+            DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 30)/2, GetScreenHeight()/2 + 80, 30, WHITE);
+
+            if(IsKeyPressed(KEY_ESCAPE)) {
+                snake_state->current_screen = SNAKE_MENU;
+                SnakeInit(snake_state);
+            }
+
+            snake_state->victory_timer--;
+            if(snake_state->victory_timer <= 0) {
+                snake_state->current_screen = SNAKE_MENU;
+                SnakeInit(snake_state);
+            }
+            break;
+        }
+        case SNAKE_GAME_OVER: {
+            DrawText("GAME OVER", GetScreenWidth()/2 - MeasureText("GAME OVER", 60)/2, GetScreenHeight()/2 - 100, 60, RED);
+            DrawText(TextFormat("Final Score: %d", snake_state->score), GetScreenWidth()/2 - MeasureText("Final Score: 100", 40)/2, GetScreenHeight()/2, 40, WHITE);
+            DrawText("Press ESC to return", GetScreenWidth()/2 - MeasureText("Press ESC to return", 30)/2, GetScreenHeight()/2 + 80, 30, WHITE);
+
+            if(IsKeyPressed(KEY_ESCAPE)) {
+                SnakeInit(snake_state);
+            }
+
+            snake_state->game_over_timer--;
+            if(snake_state->game_over_timer <= 0) {
+                SnakeInit(snake_state);
+            }
             break;
         }
     }
