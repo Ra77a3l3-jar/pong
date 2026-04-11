@@ -9,6 +9,7 @@
 #define MAX_SNAKE_LENGHT 100
 #define MAX_TRIES_FOOD 60
 #define GRID_SIZE 20
+#define GRID_MARGIN 10
 #define SPEED 8
 
 #define VICTORY_SCREEN_DURATION 600 // 5 seconds at 120fps

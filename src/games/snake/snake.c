@@ -46,8 +46,8 @@ void SnakeInit(SnakeGameState *state) {
     snake_state->prev_screen = SNAKE_MENU;
 
     snake_state->cell_size = GRID_SIZE;
-    snake_state->grid_width = GetScreenWidth() / snake_state->cell_size;
-    snake_state->grid_height = GetScreenHeight() / snake_state->cell_size;
+    snake_state->grid_width = (GetScreenWidth() - GRID_MARGIN * 2) / snake_state->cell_size;
+    snake_state->grid_height = (GetScreenHeight() - GRID_MARGIN * 2) / snake_state->cell_size;
 
     snake_state->speed = SPEED;
     snake_state->move_counter = 0;
@@ -71,6 +71,15 @@ void SnakeInit(SnakeGameState *state) {
 
 bool SnakeUpdate(SnakeGameState *state) {
     SnakeGameState *snake_state = (SnakeGameState*)state;
+
+    if(IsWindowResized()) {
+        snake_state->grid_width = (GetScreenWidth() - GRID_MARGIN * 2) / snake_state->cell_size;
+        snake_state->grid_height = (GetScreenHeight() - GRID_MARGIN * 2) / snake_state->cell_size;
+        // Respawn food if it ended up outside the new bounds
+        if(snake_state->food.x >= snake_state->grid_width || snake_state->food.y >= snake_state->grid_height) {
+            SnakeFood(snake_state);
+        }
+    }
 
     if(IsKeyPressed(KEY_ESCAPE)) {
         switch(snake_state->current_screen) {
@@ -221,37 +230,28 @@ void SnakeDraw(SnakeGameState *state) {
             break;
         }
         case  SNAKE_GAMEPLAY: {
-            // Draw grid background
-            for(int x = 0; x < snake_state->grid_width; x++) {
-                for(int y = 0; y < snake_state->grid_height; y++) {
-                    DrawRectangleLines(
-                        offset_x + x * snake_state->cell_size,
-                        offset_y + y * snake_state->cell_size,
-                        snake_state->cell_size,
-                        snake_state->cell_size,
-                        ColorAlpha(WHITE, 0.2)
-                    );
-                }
-            }
+            // Draw play area border
+            DrawRectangleLines(
+                offset_x,
+                offset_y,
+                snake_state->grid_width * snake_state->cell_size,
+                snake_state->grid_height * snake_state->cell_size,
+                ColorAlpha(WHITE, 0.25)
+            );
 
-            // Draw food
+            // Draw food (centered in cell)
+            int food_pad = 3;
             DrawRectangle(
-                offset_x + snake_state->food.x * snake_state->cell_size * 2,
-                offset_y + snake_state->food.y * snake_state->cell_size * 2,
-                snake_state->cell_size - 4,
-                snake_state->cell_size - 4,
+                offset_x + snake_state->food.x * snake_state->cell_size + food_pad,
+                offset_y + snake_state->food.y * snake_state->cell_size + food_pad,
+                snake_state->cell_size - food_pad * 2,
+                snake_state->cell_size - food_pad * 2,
                 RED
             );
 
             // Draw snake
             for(int i = 0; i < snake_state->lenght; i++) {
-                Color body_color;
-
-                if(i == 0) {
-                    body_color = DARKGREEN;
-                } else {
-                    body_color = GREEN;
-                }
+                Color body_color = (i == 0) ? LIME : GREEN;
 
                 DrawRectangle(
                     offset_x + snake_state->snake_body[i].x * snake_state->cell_size + 1,
@@ -260,7 +260,6 @@ void SnakeDraw(SnakeGameState *state) {
                     snake_state->cell_size - 2,
                     body_color
                 );
-
             }
 
             // Draw info
@@ -270,37 +269,28 @@ void SnakeDraw(SnakeGameState *state) {
             break;
         }
         case SNAKE_PAUSE: {
-                // Draw grid background
-            for(int x = 0; x < snake_state->grid_width; x++) {
-                for(int y = 0; y < snake_state->grid_height; y++) {
-                    DrawRectangleLines(
-                        offset_x + x * snake_state->cell_size,
-                        offset_y + y * snake_state->cell_size,
-                        snake_state->cell_size,
-                        snake_state->cell_size,
-                        ColorAlpha(WHITE, 0.2)
-                    );
-                }
-            }
-
-            // Draw food
-            DrawRectangle(
-                offset_x + snake_state->food.x * snake_state->cell_size * 2,
-                offset_y + snake_state->food.y * snake_state->cell_size * 2,
-                snake_state->cell_size - 4,
-                snake_state->cell_size - 4,
-                RED
+            // Draw play area border (dimmed while paused)
+            DrawRectangleLines(
+                offset_x,
+                offset_y,
+                snake_state->grid_width * snake_state->cell_size,
+                snake_state->grid_height * snake_state->cell_size,
+                ColorAlpha(WHITE, 0.15)
             );
 
-            // Draw snake
-            for(int i = 0; i < snake_state->lenght; i++) {
-                Color body_color;
+            // Draw food (centered in cell, dimmed while paused)
+            int food_pad_p = 3;
+            DrawRectangle(
+                offset_x + snake_state->food.x * snake_state->cell_size + food_pad_p,
+                offset_y + snake_state->food.y * snake_state->cell_size + food_pad_p,
+                snake_state->cell_size - food_pad_p * 2,
+                snake_state->cell_size - food_pad_p * 2,
+                ColorAlpha(RED, 0.5)
+            );
 
-                if(i == 0) {
-                    body_color = DARKGREEN;
-                } else {
-                    body_color = GREEN;
-                }
+            // Draw snake (dimmed while paused)
+            for(int i = 0; i < snake_state->lenght; i++) {
+                Color body_color = (i == 0) ? ColorAlpha(LIME, 0.5) : ColorAlpha(GREEN, 0.5);
 
                 DrawRectangle(
                     offset_x + snake_state->snake_body[i].x * snake_state->cell_size + 1,
